@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MyShop</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <h1>🛍 MyShop</h1>
+  <div>
+    <a href="cart.html">🛒 Cart</a>
+    <a href="login.html">Login</a>
+  </div>
+</header>
+
+<div style="padding:20px; display:flex; gap:10px; flex-wrap:wrap;">
+  <input id="searchInput" placeholder="Search products..." oninput="applyFilters()">
+  <input id="minPrice" type="number" placeholder="Min ₹" oninput="applyFilters()">
+  <input id="maxPrice" type="number" placeholder="Max ₹" oninput="applyFilters()">
+  <select id="categoryFilter" onchange="applyFilters()">
+    <option value="">All Categories</option>
+    <option value="electronics">Electronics</option>
+    <option value="accessories">Accessories</option>
+  </select>
+</div>
+
+<div class="products"></div>
+
+<script src="js/firebase.js"></script>
+<script src="js/products.js"></script>
+<script src="js/cart.js"></script>
+</body>
+</html>
+
