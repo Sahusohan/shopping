@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Admin Panel</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="./css/style.css">
 </head>
 <body style="padding:20px">
 
@@ -11,7 +12,7 @@
 <input id="name" placeholder="Product Name">
 <input id="price" type="number" placeholder="Price">
 <input id="image" placeholder="Image URL">
-<input id="category" placeholder="Category (electronics)">
+<input id="category" placeholder="Category">
 
 <br><br>
 <button onclick="addProduct()">Add Product</button>
@@ -20,9 +21,15 @@
 <h3>Products</h3>
 <div id="productList"></div>
 
-<script src="js/firebase.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/products.js"></script>
+<!-- ================= FIREBASE SDKs (MUST COME FIRST) ================= -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<!-- ================= YOUR JS FILES (ORDER MATTERS) ================= -->
+<script src="./js/firebase.js"></script>
+<script src="./js/auth.js"></script>
+<script src="./js/products.js"></script>
+
 </body>
 </html>
-
