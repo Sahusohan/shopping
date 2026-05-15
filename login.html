@@ -1,22 +1,212 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Login</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TinyBotics — Login / Sign Up</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body style="padding:20px">
+<body>
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="index.html" class="nav-logo">
+        <span class="tiny">Tiny</span><span class="botics">Botics</span>
+      </a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="orders.html">My Orders</a></li>
+      </ul>
+      <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
+    </div>
+  </nav>
 
-<h2>Login / Signup</h2>
+  <div class="auth-page">
+    <div class="auth-card" id="authCard">
+      <!-- Login Form -->
+      <div id="loginForm">
+        <h2>Welcome Back</h2>
+        <p class="auth-subtitle">Login to your TinyBotics account</p>
+        <div class="form-group"><label>Email</label><input type="email" class="form-input" id="loginEmail" placeholder="you@email.com"></div>
+        <div class="form-group"><label>Password</label><input type="password" class="form-input" id="loginPassword" placeholder="••••••••"></div>
+        <button class="btn btn-primary btn-block" id="btnLoginSubmit" style="margin-top:8px;">Login</button>
+        <p class="auth-toggle">Don't have an account? <a id="showSignup">Sign Up</a></p>
+      </div>
+      <!-- Signup Form -->
+      <div id="signupForm" style="display:none;">
+        <h2>Create Account</h2>
+        <p class="auth-subtitle">Join TinyBotics and get your AI assistant</p>
+        <div class="form-group"><label>Full Name</label><input type="text" class="form-input" id="signupName" placeholder="John Doe"></div>
+        <div class="form-group"><label>Email</label><input type="email" class="form-input" id="signupEmail" placeholder="you@email.com"></div>
+        <div class="form-group"><label>Password</label><input type="password" class="form-input" id="signupPassword" placeholder="Min 6 characters"></div>
+        <button class="btn btn-primary btn-block" id="btnSignupSubmit" style="margin-top:8px;">Sign Up</button>
+        <p class="auth-toggle">Already have an account? <a id="showLogin">Login</a></p>
+      </div>
+    </div>
+  </div>
 
-<input id="email" type="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
+  <!-- Address Modal -->
+  <div class="modal-overlay" id="addressModal" style="display:none;">
+    <div class="modal-content">
+      <h2>Shipping Address</h2>
+      <p style="color:var(--text-secondary); margin-bottom:18px; font-size:0.9rem;">Please add your address to place orders.</p>
+      <div class="form-group"><label>Full Name *</label><input type="text" class="form-input" id="addrName" required></div>
+      <div class="form-group"><label>Mobile Number * (10 digits)</label><input type="tel" class="form-input" id="addrPhone" maxlength="10" required></div>
+      <div class="form-group"><label>Email</label><input type="email" class="form-input" id="addrEmail" readonly></div>
+      <div class="form-group"><label>House/Flat/Street/Area *</label><input type="text" class="form-input" id="addrStreet" required></div>
+      <div class="form-group"><label>City *</label><input type="text" class="form-input" id="addrCity" required></div>
+      <div class="form-group"><label>State *</label><input type="text" class="form-input" id="addrState" required></div>
+      <div class="form-group"><label>Pincode * (6 digits)</label><input type="text" class="form-input" id="addrPincode" maxlength="6" required></div>
+      <div class="form-group"><label>Landmark (optional)</label><input type="text" class="form-input" id="addrLandmark"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-block" id="btnSaveAddress">Save Address</button>
+        <button class="btn btn-ghost btn-block" id="btnSkipAddress">Skip for now</button>
+      </div>
+    </div>
+  </div>
 
-<br><br>
-<button onclick="signup()">Sign Up</button>
-<button onclick="login()">Login</button>
+  <div class="toast-container" id="toastContainer"></div>
 
-<script src="js/firebase.js"></script>
-<script src="js/auth.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPeJZRj48zLkgLziX-AaB--edSS_GfoOU",
+      authDomain: "anonymousconfession-19707.firebaseapp.com",
+      databaseURL: "https://anonymousconfession-19707-default-rtdb.firebaseio.com",
+      projectId: "anonymousconfession-19707",
+      storageBucket: "anonymousconfession-19707.firebasestorage.app",
+      messagingSenderId: "513711142017",
+      appId: "1:513711142017:web:319791913b52aa5b644980"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    function showToast(msg, type = 'info') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`; t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3500);
+    }
+
+    // Toggle forms
+    document.getElementById('showSignup').addEventListener('click', () => {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('signupForm').style.display = 'block';
+    });
+    document.getElementById('showLogin').addEventListener('click', () => {
+      document.getElementById('signupForm').style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
+    });
+
+    // Check URL param
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('signup') === '1') {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('signupForm').style.display = 'block';
+    }
+
+    const modal = document.getElementById('addressModal');
+    let pendingUid = null;
+    let pendingEmail = null;
+    let pendingName = null;
+
+    function openAddressModal(uid, email, name) {
+      pendingUid = uid; pendingEmail = email; pendingName = name;
+      document.getElementById('addrName').value = name || '';
+      document.getElementById('addrEmail').value = email || '';
+      document.getElementById('addrPhone').value = '';
+      document.getElementById('addrStreet').value = '';
+      document.getElementById('addrCity').value = '';
+      document.getElementById('addrState').value = '';
+      document.getElementById('addrPincode').value = '';
+      document.getElementById('addrLandmark').value = '';
+      modal.style.display = 'flex';
+    }
+
+    function closeAddressModal() {
+      modal.style.display = 'none';
+    }
+
+    document.getElementById('btnSkipAddress').addEventListener('click', () => {
+      closeAddressModal();
+      window.location.href = 'index.html';
+    });
+
+    document.getElementById('btnSaveAddress').addEventListener('click', async () => {
+      const phone = document.getElementById('addrPhone').value.trim();
+      const pincode = document.getElementById('addrPincode').value.trim();
+      const street = document.getElementById('addrStreet').value.trim();
+      const city = document.getElementById('addrCity').value.trim();
+      const state = document.getElementById('addrState').value.trim();
+      const name = document.getElementById('addrName').value.trim();
+      const landmark = document.getElementById('addrLandmark').value.trim();
+
+      if (!phone.match(/^\d{10}$/)) { showToast('Enter valid 10-digit mobile number', 'error'); return; }
+      if (!pincode.match(/^\d{6}$/)) { showToast('Enter valid 6-digit pincode', 'error'); return; }
+      if (!street || !city || !state || !name) { showToast('Please fill all required fields', 'error'); return; }
+
+      try {
+        await setDoc(doc(db, 'users', pendingUid), {
+          uid: pendingUid,
+          name: name,
+          email: pendingEmail,
+          phone: phone,
+          address: { name, phone, street, city, state, pincode, landmark: landmark || '' },
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        showToast('Address saved successfully!', 'success');
+        closeAddressModal();
+        setTimeout(() => window.location.href = 'index.html', 800);
+      } catch (e) {
+        showToast('Error saving address: ' + e.message, 'error');
+      }
+    });
+
+    // Login
+    document.getElementById('btnLoginSubmit').addEventListener('click', async () => {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      if (!email || !password) { showToast('Please fill all fields', 'error'); return; }
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const user = cred.user;
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists() && userDoc.data().address) {
+          window.location.href = 'index.html';
+        } else {
+          openAddressModal(user.uid, user.email, user.displayName || '');
+        }
+      } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    // Signup
+    document.getElementById('btnSignupSubmit').addEventListener('click', async () => {
+      const name = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPassword').value;
+      if (!name || !email || !password) { showToast('Please fill all fields', 'error'); return; }
+      if (password.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(cred.user, { displayName: name });
+        openAddressModal(cred.user.uid, email, name);
+      } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    // Hamburger
+    document.getElementById('hamburger')?.addEventListener('click', () => {
+      document.getElementById('navLinks').classList.toggle('open');
+    });
+  </script>
 </body>
-</html>
-
+  </html>
