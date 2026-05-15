@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TinyBotics — Payment</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="index.html" class="nav-logo"><span class="tiny">Tiny</span><span class="botics">Botics</span></a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="orders.html">My Orders</a></li>
+      </ul>
+      <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <div class="container">
+      <h1>Complete Your <span class="gradient-text">Payment</span></h1>
+      <p>Scan the QR code to pay via UPI</p>
+    </div>
+  </div>
+
+  <section class="section" style="padding-top:20px;">
+    <div class="container">
+      <div class="payment-card" id="paymentContent">
+        <div class="order-summary">
+          <h3 style="margin-bottom:8px;">🛒 Order Summary</h3>
+          <p><strong>Product:</strong> TinyBot Pro</p>
+          <p><strong>Price:</strong> ₹2,500</p>
+          <p><strong>Delivery:</strong> 🚚 Free Across India</p>
+        </div>
+        <div style="background:var(--bg-secondary); border-radius:var(--radius-md); padding:16px; margin-bottom:20px;">
+          <h4 style="margin-bottom:8px;">📦 Shipping Address</h4>
+          <p id="displayAddress" style="font-size:0.9rem; color:var(--text-secondary);">Loading address...</p>
+        </div>
+        <div class="amount-box">₹2,500</div>
+        <div class="qr-wrap">
+          <img src="YOUR_GITHUB_RAW_QR_IMAGE_LINK_HERE"
+               alt="UPI QR Code"
+               style="width:200px; height:200px; border-radius:var(--radius-md); border:2px solid var(--border); margin:0 auto;"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div style="display:none; width:200px; height:200px; background:var(--bg-secondary); border-radius:var(--radius-md); border:2px dashed var(--border); align-items:center; justify-content:center; margin:0 auto; font-size:0.85rem; color:var(--text-muted); text-align:center; padding:20px;">QR Code<br>Placeholder</div>
+        </div>
+        <div style="background:var(--bg-secondary); border-radius:var(--radius-md); padding:16px; margin-bottom:20px;">
+          <h4 style="margin-bottom:8px;">📋 Instructions</h4>
+          <ol style="font-size:0.9rem; color:var(--text-secondary); padding-left:20px;">
+            <li>Open GPay / PhonePe / Paytm</li>
+            <li>Scan the QR code above</li>
+            <li>Pay exactly ₹2,500</li>
+            <li>Come back and click confirm below</li>
+          </ol>
+        </div>
+        <button class="btn btn-primary btn-block btn-lg" id="btnConfirmPayment" style="background:#16A34A; box-shadow:0 4px 14px rgba(22,163,74,0.35);">✅ I've Paid — Confirm My Order</button>
+        <p style="text-align:center; margin-top:12px; font-size:0.85rem; color:var(--text-muted);">Your payment will be verified within a few hours.</p>
+      </div>
+      <div class="spinner" id="spinner" style="display:none;"></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-grid">
+      <div class="footer-col"><h3>TinyBotics</h3><p style="color:var(--text-secondary); font-size:0.9rem;">Building compact AI companions.</p></div>
+      <div class="footer-col"><h3>Quick Links</h3><ul><li><a href="index.html">Home</a></li><li><a href="about.html">About</a></li><li><a href="faq.html">FAQ</a></li></ul></div>
+    </div>
+    <div class="footer-bottom"><p>&copy; 2025 TinyBotics. All rights reserved.</p></div>
+  </footer>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPeJZRj48zLkgLziX-AaB--edSS_GfoOU",
+      authDomain: "anonymousconfession-19707.firebaseapp.com",
+      databaseURL: "https://anonymousconfession-19707-default-rtdb.firebaseio.com",
+      projectId: "anonymousconfession-19707",
+      storageBucket: "anonymousconfession-19707.firebasestorage.app",
+      messagingSenderId: "513711142017",
+      appId: "1:513711142017:web:319791913b52aa5b644980"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    function showToast(msg, type = 'info') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`; t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 4000);
+    }
+
+    let currentUser = null;
+    let userAddress = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        showToast('Please login first', 'info');
+        setTimeout(() => window.location.href = 'login.html', 1000);
+        return;
+      }
+      currentUser = user;
+      document.getElementById('spinner').style.display = 'block';
+      document.getElementById('paymentContent').style.display = 'none';
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (!userDoc.exists() || !userDoc.data().address) {
+          showToast('Please add shipping address', 'info');
+          setTimeout(() => window.location.href = 'login.html', 1000);
+          return;
+        }
+        userAddress = userDoc.data().address;
+        document.getElementById('displayAddress').textContent =
+          `${userAddress.name}, ${userAddress.phone}, ${userAddress.street}, ${userAddress.city}, ${userAddress.state} - ${userAddress.pincode}${userAddress.landmark ? ', Landmark: ' + userAddress.landmark : ''}`;
+        document.getElementById('paymentContent').style.display = 'block';
+      } catch (e) {
+        showToast('Error loading address', 'error');
+      }
+      document.getElementById('spinner').style.display = 'none';
+    });
+
+    document.getElementById('btnConfirmPayment').addEventListener('click', async () => {
+      if (!currentUser || !userAddress) {
+        showToast('Session expired. Please login again.', 'error');
+        setTimeout(() => window.location.href = 'login.html', 1000);
+        return;
+      }
+      document.getElementById('btnConfirmPayment').disabled = true;
+      document.getElementById('btnConfirmPayment').textContent = 'Processing...';
+      try {
+        await addDoc(collection(db, 'orders'), {
+          userId: currentUser.uid,
+          userName: currentUser.displayName || userAddress.name,
+          userEmail: currentUser.email,
+          address: userAddress,
+          product: 'TinyBot Pro',
+          price: 2500,
+          status: 'verifying_payment',
+          trackingLink: '',
+          paymentConfirmedByUser: true,
+          paymentConfirmedAt: serverTimestamp(),
+          paymentVerifiedByAdmin: false,
+          createdAt: serverTimestamp()
+        });
+        showToast('Order placed! We will verify shortly.', 'success');
+        setTimeout(() => window.location.href = 'orders.html', 1500);
+      } catch (e) {
+        showToast('Error placing order: ' + e.message, 'error');
+        document.getElementById('btnConfirmPayment').disabled = false;
+        document.getElementById('btnConfirmPayment').textContent = "✅ I've Paid — Confirm My Order";
+      }
+    });
+
+    document.getElementById('hamburger')?.addEventListener('click', () => {
+      document.getElementById('navLinks').classList.toggle('open');
+    });
+  </script>
+</body>
+</html>
