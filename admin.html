@@ -2,34 +2,329 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Admin Panel</title>
-  <link rel="stylesheet" href="./css/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TinyBotics — Admin Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body style="padding:20px">
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <h2>🔧 Admin</h2>
+      <ul class="admin-nav">
+        <li><button class="active" data-panel="dashboard">📊 Dashboard</button></li>
+        <li><button data-panel="orders">📦 Orders</button></li>
+        <li><button data-panel="visitors">👥 Visitors</button></li>
+        <li><button id="btnAdminLogout" style="color:#DC2626;">🚪 Logout</button></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <!-- Login Screen -->
+      <div id="adminLogin">
+        <div style="max-width:400px; margin:80px auto; text-align:center;">
+          <h1 style="font-size:2rem; font-weight:800; margin-bottom:8px;">Admin Login</h1>
+          <p style="color:var(--text-secondary); margin-bottom:24px;">Enter admin credentials to continue</p>
+          <div class="form-group"><input type="email" class="form-input" id="adminEmail" placeholder="Admin Email"></div>
+          <div class="form-group"><input type="password" class="form-input" id="adminPassword" placeholder="Password"></div>
+          <button class="btn btn-primary btn-block" id="btnAdminLogin">Login</button>
+        </div>
+      </div>
 
-<h2>🧑‍💻 Admin Panel</h2>
+      <!-- Dashboard -->
+      <div id="panelDashboard" style="display:none;">
+        <h2 style="font-size:1.6rem; font-weight:800; margin-bottom:24px;">Dashboard Overview</h2>
+        <div class="stat-boxes" id="statBoxes">
+          <div class="stat-box"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total Orders</div></div>
+          <div class="stat-box"><div class="stat-value" id="statPending">0</div><div class="stat-label">Pending / Verifying</div></div>
+          <div class="stat-box"><div class="stat-value" id="statDelivered">0</div><div class="stat-label">Delivered</div></div>
+          <div class="stat-box"><div class="stat-value" id="statRevenue">₹0</div><div class="stat-label">Total Revenue</div></div>
+          <div class="stat-box"><div class="stat-value" id="statOnline">0</div><div class="stat-label">Users Online</div></div>
+          <div class="stat-box"><div class="stat-value" id="statPaymentPending">0</div><div class="stat-label">Payment Pending</div></div>
+        </div>
+      </div>
 
-<input id="name" placeholder="Product Name">
-<input id="price" type="number" placeholder="Price">
-<input id="image" placeholder="Image URL">
-<input id="category" placeholder="Category">
+      <!-- Orders Panel -->
+      <div id="panelOrders" style="display:none;">
+        <h2 style="font-size:1.6rem; font-weight:800; margin-bottom:24px;">All Orders</h2>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Order ID</th><th>Customer</th><th>Product</th><th>Date</th><th>Shipping Address</th><th>Status</th><th>Tracking</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
 
-<br><br>
-<button onclick="addProduct()">Add Product</button>
+      <!-- Visitors Panel -->
+      <div id="panelVisitors" style="display:none;">
+        <h2 style="font-size:1.6rem; font-weight:800; margin-bottom:24px;">Visitors</h2>
+        <div class="stat-boxes" style="margin-bottom:24px;">
+          <div class="stat-box"><div class="stat-value" id="statVisitorsOnline">0</div><div class="stat-label">Online Now</div></div>
+          <div class="stat-box"><div class="stat-value" id="statVisitorsTotal">0</div><div class="stat-label">Total Users</div></div>
+        </div>
+        <div class="visitor-cards" id="visitorCards"></div>
+      </div>
 
-<hr>
-<h3>Products</h3>
-<div id="productList"></div>
+      <div class="spinner" id="spinner" style="display:none;"></div>
+    </main>
+  </div>
 
-<!-- ================= FIREBASE SDKs (MUST COME FIRST) ================= -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <div class="toast-container" id="toastContainer"></div>
 
-<!-- ================= YOUR JS FILES (ORDER MATTERS) ================= -->
-<script src="./js/firebase.js"></script>
-<script src="./js/auth.js"></script>
-<script src="./js/products.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+    const ADMIN_EMAIL = "your-admin@email.com";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPeJZRj48zLkgLziX-AaB--edSS_GfoOU",
+      authDomain: "anonymousconfession-19707.firebaseapp.com",
+      databaseURL: "https://anonymousconfession-19707-default-rtdb.firebaseio.com",
+      projectId: "anonymousconfession-19707",
+      storageBucket: "anonymousconfession-19707.firebasestorage.app",
+      messagingSenderId: "513711142017",
+      appId: "1:513711142017:web:319791913b52aa5b644980"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    function showToast(msg, type = 'info') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`; t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 4000);
+    }
+
+    const statusOptions = ['pending', 'verifying_payment', 'confirmed', 'shipped', 'delivered'];
+    const statusLabels = { pending:'Pending', verifying_payment:'Verifying Payment', confirmed:'Confirmed', shipped:'Shipped', delivered:'Delivered' };
+
+    let allOrders = [];
+    let allVisitors = [];
+
+    function hideAllPanels() {
+      ['panelDashboard','panelOrders','panelVisitors'].forEach(id => document.getElementById(id).style.display = 'none');
+    }
+
+    function showPanel(name) {
+      hideAllPanels();
+      document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1)).style.display = 'block';
+      document.querySelectorAll('.admin-nav button[data-panel]').forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector(`.admin-nav button[data-panel="${name}"]`);
+      if (btn) btn.classList.add('active');
+    }
+
+    async function loadAllData() {
+      document.getElementById('spinner').style.display = 'block';
+      try {
+        const ordersSnap = await getDocs(query(collection(db, 'orders'), orderBy('createdAt', 'desc')));
+        allOrders = [];
+        ordersSnap.forEach(d => allOrders.push({ id: d.id, ...d.data() }));
+
+        const visitorsSnap = await getDocs(collection(db, 'visitors'));
+        allVisitors = [];
+        visitorsSnap.forEach(d => allVisitors.push({ id: d.id, ...d.data() }));
+
+        updateDashboard();
+        renderOrdersTable();
+        renderVisitorCards();
+      } catch (e) {
+        showToast('Error loading data: ' + e.message, 'error');
+      }
+      document.getElementById('spinner').style.display = 'none';
+    }
+
+    function updateDashboard() {
+      const total = allOrders.length;
+      const pending = allOrders.filter(o => o.status === 'pending' || o.status === 'verifying_payment').length;
+      const delivered = allOrders.filter(o => o.status === 'delivered').length;
+      const revenue = allOrders.reduce((sum, o) => sum + (o.price || 2500), 0);
+      const paymentPending = allOrders.filter(o => o.status === 'verifying_payment').length;
+      const now = Date.now();
+      const online = allVisitors.filter(v => v.lastSeen && (now - v.lastSeen.toDate().getTime()) < 600000).length;
+
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statPending').textContent = pending;
+      document.getElementById('statDelivered').textContent = delivered;
+      document.getElementById('statRevenue').textContent = '₹' + revenue.toLocaleString('en-IN');
+      document.getElementById('statOnline').textContent = online;
+      document.getElementById('statPaymentPending').textContent = paymentPending;
+
+      document.getElementById('statVisitorsOnline').textContent = online;
+      document.getElementById('statVisitorsTotal').textContent = allVisitors.length;
+    }
+
+    function renderOrdersTable() {
+      const tbody = document.getElementById('ordersTableBody');
+      tbody.innerHTML = '';
+      allOrders.forEach(order => {
+        const addr = order.address || {};
+        const date = order.createdAt ? new Date(order.createdAt.toDate()).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : 'N/A';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-family:var(--font-mono); font-size:0.8rem;">#${order.id.slice(-8).toUpperCase()}</td>
+          <td>${order.userName || 'N/A'}<br><small style="color:var(--text-muted);">${order.userEmail || ''}</small></td>
+          <td>${order.product || 'TinyBot Pro'}<br>₹${order.price || 2500}</td>
+          <td>${date}</td>
+          <td style="font-size:0.8rem;">${addr.name || ''}, ${addr.phone || ''}<br>${addr.street || ''}, ${addr.city || ''}<br>${addr.state || ''} - ${addr.pincode || ''}${addr.landmark ? ', ' + addr.landmark : ''}</td>
+          <td>
+            <select class="admin-select status-select" data-order-id="${order.id}">
+              ${statusOptions.map(s => `<option value="${s}" ${order.status === s ? 'selected' : ''}>${statusLabels[s]}</option>`).join('')}
+            </select>
+          </td>
+          <td>
+            <input type="text" class="admin-input-sm tracking-input" data-order-id="${order.id}" value="${order.trackingLink || ''}" placeholder="Tracking URL">
+            <button class="btn btn-sm btn-primary save-tracking" data-order-id="${order.id}" style="margin-top:4px;">Save</button>
+          </td>
+          <td>
+            ${order.status === 'verifying_payment' ? `<button class="btn btn-sm btn-success confirm-payment" data-order-id="${order.id}" style="margin-bottom:4px;">Confirm Payment</button>` : ''}
+            <button class="btn btn-sm btn-danger delete-order" data-order-id="${order.id}">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Event listeners
+      document.querySelectorAll('.status-select').forEach(sel => {
+        sel.addEventListener('change', async (e) => {
+          const orderId = e.target.dataset.orderId;
+          const newStatus = e.target.value;
+          try {
+            await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+            showToast('Status updated', 'success');
+            const order = allOrders.find(o => o.id === orderId);
+            if (order) order.status = newStatus;
+            updateDashboard();
+          } catch (err) { showToast('Error: ' + err.message, 'error'); }
+        });
+      });
+
+      document.querySelectorAll('.save-tracking').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const orderId = btn.dataset.orderId;
+          const input = document.querySelector(`.tracking-input[data-order-id="${orderId}"]`);
+          const link = input.value.trim();
+          try {
+            await updateDoc(doc(db, 'orders', orderId), { trackingLink: link });
+            showToast('Tracking saved', 'success');
+            const order = allOrders.find(o => o.id === orderId);
+            if (order) order.trackingLink = link;
+          } catch (err) { showToast('Error: ' + err.message, 'error'); }
+        });
+      });
+
+      document.querySelectorAll('.confirm-payment').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const orderId = btn.dataset.orderId;
+          if (!confirm('Confirm this payment?')) return;
+          try {
+            await updateDoc(doc(db, 'orders', orderId), { status: 'confirmed', paymentVerifiedByAdmin: true });
+            showToast('Payment confirmed!', 'success');
+            const order = allOrders.find(o => o.id === orderId);
+            if (order) order.status = 'confirmed';
+            renderOrdersTable();
+            updateDashboard();
+          } catch (err) { showToast('Error: ' + err.message, 'error'); }
+        });
+      });
+
+      document.querySelectorAll('.delete-order').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const orderId = btn.dataset.orderId;
+          if (!confirm('Delete this order permanently?')) return;
+          try {
+            await deleteDoc(doc(db, 'orders', orderId));
+            showToast('Order deleted', 'success');
+            allOrders = allOrders.filter(o => o.id !== orderId);
+            renderOrdersTable();
+            updateDashboard();
+          } catch (err) { showToast('Error: ' + err.message, 'error'); }
+        });
+      });
+    }
+
+    function renderVisitorCards() {
+      const container = document.getElementById('visitorCards');
+      container.innerHTML = '';
+      const now = Date.now();
+      allVisitors.forEach(v => {
+        const isOnline = v.lastSeen && (now - v.lastSeen.toDate().getTime()) < 600000;
+        const lastSeen = v.lastSeen ? new Date(v.lastSeen.toDate()).toLocaleString('en-IN') : 'N/A';
+        const ua = v.userAgent || '';
+        let device = 'Unknown';
+        if (ua.includes('Android')) device = 'Android';
+        else if (ua.includes('iPhone') || ua.includes('iPad')) device = 'iOS';
+        else if (ua.includes('Windows')) device = 'Windows';
+        else if (ua.includes('Mac')) device = 'Mac';
+        let browser = 'Unknown';
+        if (ua.includes('Chrome')) browser = 'Chrome';
+        else if (ua.includes('Firefox')) browser = 'Firefox';
+        else if (ua.includes('Safari')) browser = 'Safari';
+
+        const card = document.createElement('div');
+        card.className = 'visitor-card';
+        card.innerHTML = `
+          ${isOnline ? '<div class="online-dot"></div>' : ''}
+          <strong>${v.name || 'Anonymous'}</strong>
+          <p style="font-size:0.8rem; color:var(--text-muted);">${v.email || 'No email'}</p>
+          <p style="font-size:0.78rem; color:var(--text-secondary);">🕐 ${lastSeen}</p>
+          <p style="font-size:0.78rem; color:var(--text-muted);">📱 ${device} · ${browser}</p>
+          <p style="font-size:0.75rem; color:var(--text-muted);">🖥️ ${v.screenW || '?'}×${v.screenH || '?'} · 🌐 ${v.language || '?'}</p>
+          ${v.referrer ? `<p style="font-size:0.75rem; color:var(--text-muted);">🔗 ${v.referrer}</p>` : ''}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Auth
+    onAuthStateChanged(auth, (user) => {
+      document.getElementById('adminLogin').style.display = user && user.email === ADMIN_EMAIL ? 'none' : 'block';
+      if (user && user.email === ADMIN_EMAIL) {
+        document.getElementById('adminLogin').style.display = 'none';
+        showPanel('dashboard');
+        loadAllData();
+      } else {
+        hideAllPanels();
+        document.getElementById('adminLogin').style.display = 'block';
+      }
+    });
+
+    document.getElementById('btnAdminLogin').addEventListener('click', async () => {
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value;
+      if (!email || !password) { showToast('Fill all fields', 'error'); return; }
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        if (cred.user.email !== ADMIN_EMAIL) {
+          showToast('Access denied. Not an admin.', 'error');
+          await signOut(auth);
+          return;
+        }
+        showToast('Welcome, Admin!', 'success');
+      } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    document.getElementById('btnAdminLogout').addEventListener('click', async () => {
+      await signOut(auth);
+      window.location.reload();
+    });
+
+    // Panel navigation
+    document.querySelectorAll('.admin-nav button[data-panel]').forEach(btn => {
+      btn.addEventListener('click', () => showPanel(btn.dataset.panel));
+    });
+
+    // Auto-refresh every 30 seconds
+    setInterval(() => {
+      if (auth.currentUser && auth.currentUser.email === ADMIN_EMAIL) loadAllData();
+    }, 30000);
+  </script>
 </body>
 </html>
